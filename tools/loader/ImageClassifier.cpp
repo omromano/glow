@@ -627,7 +627,11 @@ int main(int argc, char **argv) {
     if ((!miniBatchMode) && (!streamInputFilenamesMode)) {
       inputImageBatchFilenames = inputImageFilenames;
     }
-
+    if (!tracePath.empty()) {
+      loader.getHostManager()->setTraceContext(
+          glow::make_unique<TraceContext>(traceLevel));
+      loader.getHostManager()->startDeviceTrace();
+    }
     while ((streamInputFilenamesMode &&
             getNextImageFilenames(&inputImageBatchFilenames)) ||
            (miniBatchMode &&
@@ -733,6 +737,10 @@ int main(int argc, char **argv) {
     // have run inference one or more times to gather the profile.
     if (profilingGraph()) {
       loader.generateAndSerializeQuantizationInfos(bindings);
+    }
+    if (!tracePath.empty()) {
+      loader.getHostManager()->stopDeviceTrace();
+      traceContext->merge(loader.getHostManager()->getTraceContext());
     }
   };
 

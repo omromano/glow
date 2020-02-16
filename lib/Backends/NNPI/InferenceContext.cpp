@@ -52,13 +52,22 @@ bool InferenceContext::init(
     const std::unordered_set<const Placeholder *> &staticInputs,
     std::shared_ptr<NNPIDeviceTracing> deviceTracing,
     StaticPlaceholderMap *staticPlaceholderMap,
-    const NNPIDeviceOptions *deviceOptions) {
+    const NNPIDeviceOptions *deviceOptions, unsigned deviceID) {
   deviceOptions_ = deviceOptions;
+  deviceID_ = deviceID;
   nnpiNetwork_ = network;
   device_ = device;
   compilationConfig_ = config;
   partialInputs_ = &partialInputs;
   deviceTracing_ = deviceTracing;
+
+  // Initialize trace context titles with device ID.
+  std::stringstream deviceInfo;
+  deviceInfo << "[Device #" << deviceID_ << "] ";
+  traceBackendExecuteContextName_ = deviceInfo.str() + TRACING_BACKEND_EXECUTE;
+  tracePreProcessContextName_ = deviceInfo.str() + TRACING_PRE_PROCESS;
+  traceInferenceContextName_ = deviceInfo.str() + TRACING_INFERENCE;
+  tracePostProcessContextName_ = deviceInfo.str() + TRACING_POST_PROCESS;
 
   LOG_AND_RETURN_IF(ERROR, staticPlaceholderMap == nullptr,
                     "InferenceContext Init was called with an invalid "
@@ -256,9 +265,12 @@ void InferenceContext::execute(RunIdentifierTy runId,
                                std::unique_ptr<ExecutionContext> ctx,
                                runtime::ResultCBTy resultCB) {
   TRACE_EVENT_SCOPE(ctx->getTraceContext(), TraceLevel::REQUEST,
-                    TRACING_BACKEND_EXECUTE);
+                    traceBackendExecuteContextName_);
   if (ctx->getTraceContext()) {
     ctx->getTraceContext()->setThreadName("InferenceContext");
+  }
+  if (deviceTracing_) {
+    deviceTracing_->start(ctx->getTraceContext(), runId);
   }
 
   // Pre inference input preparation.
@@ -271,7 +283,7 @@ void InferenceContext::execute(RunIdentifierTy runId,
     }
   }
   TRACE_EVENT_BEGIN(ctx->getTraceContext(), TraceLevel::COPY,
-                    TRACING_PRE_PROCESS);
+                    tracePreProcessContextName_);
 
   // Pre-inference
   auto &phTensorMap = bindings.pairs();
@@ -299,9 +311,9 @@ void InferenceContext::execute(RunIdentifierTy runId,
     if (deviceOptions_->enabledCommandLists < 1) {
       // No command lists (schedule individual commands).
       TRACE_EVENT_END(ctx->getTraceContext(), TraceLevel::COPY,
-                      TRACING_PRE_PROCESS);
+                      tracePreProcessContextName_);
       TRACE_EVENT_BEGIN(ctx->getTraceContext(), TraceLevel::OPERATOR,
-                        TRACING_INFERENCE);
+                        traceInferenceContextName_);
       // Queue inference.
       LOG_AND_CALLBACK_EXECUTE_NNPI_INF_IF_ERROR(
           nnpiInferCommandQueue(inferCmd_, 0), "Failed to queue infer command.",
@@ -331,10 +343,9 @@ void InferenceContext::execute(RunIdentifierTy runId,
       }
 
       TRACE_EVENT_END(ctx->getTraceContext(), TraceLevel::COPY,
-                      TRACING_PRE_PROCESS);
+                      tracePreProcessContextName_);
       TRACE_EVENT_BEGIN(ctx->getTraceContext(), TraceLevel::OPERATOR,
-                        TRACING_INFERENCE);
-
+                        traceInferenceContextName_);
       // Queue Command list
       LOG_AND_CALLBACK_EXECUTE_NNPI_INF_IF_ERROR(
           nnpiCommandListQueue(commandList_, &(cmdConfigs_.at(0)), usedConfigs),
@@ -403,9 +414,9 @@ void InferenceContext::execute(RunIdentifierTy runId,
   }
 
   TRACE_EVENT_END(ctx->getTraceContext(), TraceLevel::OPERATOR,
-                  TRACING_INFERENCE);
+                  traceInferenceContextName_);
   TRACE_EVENT_BEGIN(ctx->getTraceContext(), TraceLevel::COPY,
-                    TRACING_POST_PROCESS);
+                    tracePostProcessContextName_);
 
   // Post inference output handling.
   for (auto &out : outputResources_) {
@@ -421,8 +432,10 @@ void InferenceContext::execute(RunIdentifierTy runId,
         "Failed in output PostInference", runId, ctx, resultCB);
   }
   TRACE_EVENT_END(ctx->getTraceContext(), TraceLevel::COPY,
-                  TRACING_POST_PROCESS);
-
+                  tracePostProcessContextName_);
+  if (deviceTracing_) {
+    deviceTracing_->stopAndUpdate(ctx->getTraceContext(), runId);
+  }
   TRACE_EVENT_SCOPE_END(); // we move context in the line below
 
   // Invoke CB.

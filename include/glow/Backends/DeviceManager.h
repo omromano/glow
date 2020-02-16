@@ -202,6 +202,9 @@ public:
     DCHECK("Not Implemented");
     return false;
   }
+
+  virtual void startDeviceTrace(TraceContext *traceContext) {}
+  virtual void stopDeviceTrace(TraceContext *traceContext) {}
 };
 
 } // namespace runtime

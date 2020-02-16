@@ -54,10 +54,18 @@ private:
 
   /// NNPI Device configuration.
   const NNPIDeviceOptions *deviceOptions_;
+  /// NNPI Device id.
+  unsigned deviceID_;
 
   // NNPI Resources.
   std::vector<std::shared_ptr<NNPIResource>> inputResources_;
   std::vector<std::shared_ptr<NNPIResource>> outputResources_;
+
+  /// Trace context names.
+  std::string traceBackendExecuteContextName_;
+  std::string tracePreProcessContextName_;
+  std::string traceInferenceContextName_;
+  std::string tracePostProcessContextName_;
 
 public:
   InferenceContext();
@@ -74,7 +82,7 @@ public:
       const std::unordered_set<const Placeholder *> &staticInputs,
       std::shared_ptr<NNPIDeviceTracing> deviceTracing,
       StaticPlaceholderMap *staticPlaceholderMap,
-      const NNPIDeviceOptions *deviceOptions);
+      const NNPIDeviceOptions *deviceOptions, unsigned deviceID);
 };
 
 } // namespace runtime

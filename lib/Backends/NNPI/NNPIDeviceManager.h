@@ -96,6 +96,10 @@ public:
 
   void transferStaticPlaceholderToDevice(Placeholder *PH, Tensor *T,
                                          std::function<void(Error)> resultCB);
+
+  inline unsigned getDeviceID() const { return deviceId_; }
+  virtual void startDeviceTrace(TraceContext *traceContext) override;
+  virtual void stopDeviceTrace(TraceContext *traceContext) override;
 };
 
 DeviceManager *createNNPIDeviceManager(const DeviceConfig &config);

@@ -179,6 +179,13 @@ public:
                       "Sets a file name to save the compilation output to the "
                       "filename specified.",
                       "ICE_T_FILE", "");
+  /// Use function name for compilation compilation output filename (works only
+  /// when CompiledFile is not empty).
+  DECLARE_NNPI_OPTION(prefixFuncitonNameToCompilationOutput, bool,
+                      "CompiledFile",
+                      "Use function name for compilation compilation output "
+                      "filename (works only when CompiledFile is not empty).",
+                      "ICE_T_FILE_F_NAME_PREFIX", "0");
   /// Setting this variable will force compilation to use no more than
   /// the set amount of ice cores (1-12), -1 for unlimited.
   DECLARE_NNPI_OPTION(
@@ -221,6 +228,7 @@ public:
     INIT_NNPI_OPTIONS(inferOnDevice, parameters);
     INIT_NNPI_OPTIONS(showVars, parameters);
     INIT_NNPI_OPTIONS(compiledFile, parameters);
+    INIT_NNPI_OPTIONS(prefixFuncitonNameToCompilationOutput, parameters);
     INIT_NNPI_OPTIONS(iceCores, parameters);
     INIT_NNPI_OPTIONS(useSymlowp, parameters);
     INIT_NNPI_OPTIONS(deviceVersion, parameters);

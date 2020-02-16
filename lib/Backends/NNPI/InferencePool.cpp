@@ -50,8 +50,10 @@ Error InferencePoolEnv::init(unsigned numWorkers, NNPIAdapter adapter,
                              std::shared_ptr<NNPIDeviceTracing> deviceTracing,
                              CompiledFunction *compiledFunction,
                              StaticPlaceholderMap *staticPlaceholderMap,
-                             const NNPIDeviceOptions *deviceOptions) {
+                             const NNPIDeviceOptions *deviceOptions,
+                             unsigned deviceID) {
   deviceOptions_ = deviceOptions;
+  deviceID_ = deviceID;
   if (workersPool_) {
     return MAKE_ERR("InferencePool already initialized!");
   }
@@ -116,7 +118,7 @@ Error InferencePoolEnv::init(unsigned numWorkers, NNPIAdapter adapter,
                                hostNetwork_, deviceNetwork_, adapter, device,
                                nnpiFunction->getPartialInputs(),
                                nnpiFunction->getStaticInputs(), deviceTracing_,
-                               staticPlaceholderMap, deviceOptions);
+                               staticPlaceholderMap, deviceOptions, deviceID);
     if (!success) {
       return MAKE_ERR("Failed to initialize inferece context");
     }

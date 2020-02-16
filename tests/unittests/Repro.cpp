@@ -192,6 +192,11 @@ llvm::cl::opt<bool> glowDumpTrace("glow_dump_debug_traces",
                                   llvm::cl::desc("Dump glow trace"),
                                   llvm::cl::Optional, llvm::cl::init(false),
                                   llvm::cl::cat(reproTestCat));
+llvm::cl::opt<std::string>
+    glowDumpTraceFile("glow_dump_debug_traces_file",
+                      llvm::cl::desc("Dump glow trace output file"),
+                      llvm::cl::Optional, llvm::cl::init("glow-trace"),
+                      llvm::cl::cat(reproTestCat));
 
 void parseCommandLine(int argc, char **argv) {
   llvm::sys::PrintStackTraceOnErrorSignal(argv[0]);
@@ -277,7 +282,12 @@ private:
 
 int run() {
   int numFailed = 0;
-
+  if (glowDumpTrace) {
+    LOG(INFO) << "glowDumpTrace:" << glowDumpTrace;
+    LOG(INFO) << "glowDumpTraceFile:" << glowDumpTraceFile;
+  } else {
+    LOG(INFO) << "glowDumpTrace is disabled:" << glowDumpTrace;
+  }
   // Build the execution engine and deserialize the Function.
   auto mod = glow::make_unique<Module>();
   Function *F = mod->createFunction("test");
@@ -558,6 +568,11 @@ int run() {
   }
 
   if (glowDumpTrace) {
+    LOG(INFO) << "Stop device tracing";
+    hostManager->stopDeviceTrace();
+    LOG(INFO) << "Merge host tracing";
+    mergedTraceContext.merge(hostManager->getTraceContext());
+    LOG(INFO) << "Generate tracing dump";
     llvm::SmallString<64> path;
     auto tempFileRes =
         llvm::sys::fs::createTemporaryFile("glow-trace", "json", path);

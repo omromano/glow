@@ -52,9 +52,6 @@ public:
   /// Stop recording, read and update trace context.
   void stopAndUpdate(TraceContext *traceContext,
                      runtime::RunIdentifierTy runId);
-  /// Start copy.
-  void startCopyTime();
-
 protected:
   std::string getEntryName(NNPITraceEntry &entry);
   bool addTrace(NNPITraceEntry &entry);
@@ -73,6 +70,8 @@ private:
   std::unique_ptr<NNPITraceContext> traceCtx_;
   /// Device id.
   uint32_t deviceID_{0};
+  /// Device id string prefix for event names.
+  std::string deviceInfo_;
 };
 
 } // namespace glow

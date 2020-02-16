@@ -22,7 +22,9 @@
 using namespace glow;
 
 NNPIDeviceTracing::NNPIDeviceTracing(uint32_t deviceID) : deviceID_(deviceID) {
-  traceCtx_ = glow::make_unique<NNPITraceContext>(0);
+  traceCtx_ = glow::make_unique<NNPITraceContext>(0, deviceID);
+  deviceInfo_ =
+      std::string("[Device #") + std::to_string(deviceID) + std::string("] ");
 }
 
 void NNPIDeviceTracing::start(TraceContext *traceContext,
@@ -46,6 +48,7 @@ void NNPIDeviceTracing::start(TraceContext *traceContext,
 
 std::string NNPIDeviceTracing::getEntryName(NNPITraceEntry &entry) {
   std::stringstream name;
+  name << deviceInfo_;
   switch (entry.traceType) {
   case NNPI_TRACE_UNKNOWN:
     name << "UnknownTrace";
@@ -65,6 +68,30 @@ std::string NNPIDeviceTracing::getEntryName(NNPITraceEntry &entry) {
   case NNPI_TRACE_CLOCK_SYNC:
     name << "ClockSync";
     break;
+  case NNPI_TRACE_CMDLIST:
+    name << "CommandList";
+    break;
+  case NNPI_TRACE_NETEXEC:
+    name << "NetExecute";
+    break;
+  case NNPI_TRACE_SUBGRAPH:
+    name << "SubGraph";
+    break;
+  case NNPI_TRACE_RUNTIME_INFER:
+    name << "RunTimeInf";
+    break;
+  case NNPI_TRACE_ICED_SCHED_JOB:
+    name << "DSchedJob";
+    break;
+  case NNPI_TARCE_ICED_CREAT_NET:
+    name << "DCreateNet";
+    break;
+  case NNPI_TARCE_ICED_NET_RES:
+    name << "DNetRes";
+    break;
+  case NNPI_TARCE_ICED_NET_GEN:
+    name << "DNetGen";
+    break;
   default:
     name << "Othertrace";
   }
@@ -76,14 +103,35 @@ std::string NNPIDeviceTracing::getEntryName(NNPITraceEntry &entry) {
     }
   }
   auto params = entry.params;
+  if (entry.params.count("iceId") > 0) {
+    name << "-ICE_" << entry.params["iceId"];
+  }
+  if (entry.params.count("netID") > 0) {
+    name << "-NET_" << entry.params["netID"];
+  }
+  if (entry.params.count("reqID") > 0) {
+    name << "REQ_" << entry.params["reqID"];
+  }
   if (entry.params.count("ctxID") > 0) {
-    name << "-" << entry.params["ctxID"];
+    name << "-CTX_" << entry.params["ctxID"];
+  }
+  if (entry.params.count("subNetId") > 0) {
+    name << "-SUBNET_" << entry.params["subNetId"];
+  }
+  if (entry.params.count("inferID") > 0) {
+    name << "-INFR_" << entry.params["inferID"];
+  }
+  if (entry.params.count("subGraphID") > 0) {
+    name << "-SUBGRAPH_" << entry.params["subGraphID"];
+  }
+  if (entry.params.count("agent") > 0) {
+    name << "-AGENT_" << entry.params["agent"];
   }
   if (entry.params.count("copyID") > 0) {
-    name << "-" << entry.params["copyID"];
+    name << "-CPID_" << entry.params["copyID"];
   }
   if (entry.params.count("size") > 0) {
-    name << "-" << entry.params["size"];
+    name << "-SIZE_" << entry.params["size"];
   }
   return name.str();
 }
@@ -91,16 +139,20 @@ std::string NNPIDeviceTracing::getEntryName(NNPITraceEntry &entry) {
 bool NNPIDeviceTracing::addTrace(NNPITraceEntry &entry) {
   // Filter traces.
   switch (entry.traceType) {
-  case NNPI_TRACE_UNKNOWN:
-    return false;
-  case NNPI_TRACE_DMA:
-    return false;
   case NNPI_TRACE_INFER:
-    break;
   case NNPI_TRACE_COPY:
+  case NNPI_TRACE_CMDLIST:
+  case NNPI_TRACE_NETEXEC:
+  case NNPI_TRACE_SUBGRAPH:
+  case NNPI_TRACE_RUNTIME_INFER:
+  case NNPI_TRACE_ICED_SCHED_JOB:
+  case NNPI_TARCE_ICED_CREAT_NET:
+  case NNPI_TARCE_ICED_NET_RES:
+  case NNPI_TARCE_ICED_NET_GEN:
     break;
+  case NNPI_TRACE_UNKNOWN:
+  case NNPI_TRACE_DMA:
   case NNPI_TRACE_MARK:
-    return false;
   case NNPI_TRACE_CLOCK_SYNC:
     return false;
   default:
@@ -118,34 +170,49 @@ bool NNPIDeviceTracing::addTrace(NNPITraceEntry &entry) {
     name += "-Queue";
     glowTraceCtx_->logTraceEvent(name, TraceLevel::OPERATOR,
                                  TraceEvent::InstantType, entry.hostTime,
-                                 entry.params);
+                                 //  entry.params);
+                                 {});
   } else if (state == "s" || state == "cbs" || state == "executed") {
     glowTraceCtx_->logTraceEvent(name, TraceLevel::OPERATOR,
                                  TraceEvent::BeginType, entry.hostTime,
-                                 entry.params);
+                                 //  entry.params);
+                                 {});
   } else if (state == "c" || state == "cbc" || state == "completed") {
     glowTraceCtx_->logTraceEvent(name, TraceLevel::OPERATOR,
                                  TraceEvent::EndType, entry.hostTime,
-                                 entry.params);
+                                 //  entry.params);
+                                 {});
   } else if (state == "cbs") {
     glowTraceCtx_->logTraceEvent(name, TraceLevel::OPERATOR,
                                  TraceEvent::BeginType, entry.hostTime,
-                                 entry.params);
+                                 //  entry.params);
+                                 {});
   } else if (state == "cbc") {
     glowTraceCtx_->logTraceEvent(name, TraceLevel::OPERATOR,
                                  TraceEvent::EndType, entry.hostTime,
-                                 entry.params);
+                                 //  entry.params);
+                                 {});
   } else if (state == "cbnwc") {
     glowTraceCtx_->logTraceEvent(name, TraceLevel::OPERATOR,
                                  TraceEvent::InstantType, entry.hostTime,
-                                 entry.params);
+                                 //  entry.params);
+                                 {});
+  } else if (state == "req") {
+    name += "-Req";
+    glowTraceCtx_->logTraceEvent(name, TraceLevel::OPERATOR,
+                                 TraceEvent::InstantType, entry.hostTime,
+                                 //  entry.params);
+                                 {});
   }
+
   return true;
 }
 
 void NNPIDeviceTracing::stopAndUpdate(TraceContext *traceContext,
                                       runtime::RunIdentifierTy runId) {
-  if (glowTraceCtx_ != traceContext || runId_ != runId) {
+  if (glowTraceCtx_ !=
+          nullptr && // For null glowTraceCtx assume global context (per device)
+      (glowTraceCtx_ != traceContext || runId_ != runId)) {
     // Ignore stop from other contexts.
     return;
   }
@@ -158,15 +225,10 @@ void NNPIDeviceTracing::stopAndUpdate(TraceContext *traceContext,
     LOG(WARNING) << "Failed to stop trace capture";
     return;
   }
+  traceContext->setThreadName("NNPI_Trace");
   for (auto entry : traceCtx_->getEntries()) {
     std::map<std::string, std::string> params = entry.params;
     addTrace(entry);
   }
   started_.clear();
-}
-
-void NNPIDeviceTracing::startCopyTime() {
-  if (traceCtx_) {
-    traceCtx_->markInputCopyStart(TraceEvent::now());
-  }
 }

@@ -27,6 +27,15 @@ enum NNPITraceType {
   NNPI_TRACE_COPY = 0x0004,
   NNPI_TRACE_MARK = 0x0008,
   NNPI_TRACE_CLOCK_SYNC = 0x0010,
+  NNPI_TRACE_CMDLIST = 0x0020,
+  NNPI_TRACE_NETEXEC = 0x0040,
+  NNPI_TRACE_SUBGRAPH = 0x0080,
+  NNPI_TARCE_TIME_SYNC = 0x0100,
+  NNPI_TRACE_RUNTIME_INFER = 0x0200,
+  NNPI_TRACE_ICED_SCHED_JOB = 0x0300,
+  NNPI_TARCE_ICED_CREAT_NET = 0x0400,
+  NNPI_TARCE_ICED_NET_RES = 0x0800,
+  NNPI_TARCE_ICED_NET_GEN = 0x1000,
   NNPI_TRACE_OTHER = 0x8000
 };
 
@@ -43,10 +52,10 @@ struct NNPITraceEntry {
 /// Device trace api wrapper.
 class NNPITraceContext {
 public:
-  NNPITraceContext(uint32_t eventsMask);
+  NNPITraceContext(uint32_t eventsMask, uint32_t devID);
   virtual ~NNPITraceContext();
   /// Start capturing traces from the HW device.
-  bool startCapture() const;
+  bool startCapture();
   /// Start capturing.
   bool stopCapture() const;
   /// Load traces (valid only after stopCapture()).
@@ -65,12 +74,11 @@ public:
   /// Get a vector of the loaded entries (valid only after load()).
   std::vector<NNPITraceEntry> getEntries() const { return entries_; }
 
-  /// Use to sync device and host clocks by flagging the first input copy on the
-  /// host.
-  void markInputCopyStart(uint64_t uptime);
-
 private:
+  bool destroyContext();
   bool createContext();
+  int64_t getDeviceTimeDiff();
+  bool readTraceOutput(std::stringstream &inputStream);
 
   nnpimlTraceContext traceCtx_{0};
   uint64_t devMask_{0};
@@ -78,9 +86,7 @@ private:
   bool devIDSet_{false};
   std::string events_;
   std::vector<NNPITraceEntry> entries_;
-  uint64_t upRefTime_{0};
   int64_t timeDiff_{0};
-  size_t timeUpdatedIndex_{0};
 };
 
 #endif // NNPI_NNPITRACING_ML_WRAPPER_H

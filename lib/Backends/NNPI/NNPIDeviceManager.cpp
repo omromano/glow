@@ -18,6 +18,7 @@
 #include "InferencePool.h"
 #include "NNPI.h"
 #include "NNPICompiledFunction.h"
+#include "NNPITracing.h"
 #include "glow/Support/Error.h"
 #include "nnpi_inference.h"
 #include "nnpi_transformer.h"
@@ -196,7 +197,7 @@ void NNPIDeviceManager::addNetwork(const Module *module,
     usedMemoryBytes_ += functionCost_; // TODO:: static moduleSize.
     auto err = inferenceEnvs_[func.first].init(
         numWorkersPerFunction_, adapter_, device_, deviceTracing_, func.second,
-        &staticPlaceholders_, &deviceOptions_);
+        &staticPlaceholders_, &deviceOptions_, deviceId_);
     if (err) {
       functions_.erase(func.first);
       lock.unlock();
@@ -315,6 +316,14 @@ void NNPIDeviceManager::transferStaticPlaceholderToDevice(
 
   nnpiResource->UpdateDeviceResourceFromTensor(T, resultCB);
 };
+
+void NNPIDeviceManager::startDeviceTrace(TraceContext *traceContext) {
+  NNPIDeviceTracing::getForDevice(deviceId_)->start(traceContext, -1);
+}
+
+void NNPIDeviceManager::stopDeviceTrace(TraceContext *traceContext) {
+  NNPIDeviceTracing::getForDevice(deviceId_)->stopAndUpdate(traceContext, -1);
+}
 
 } // namespace runtime
 } // namespace glow
